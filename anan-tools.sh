@@ -4,12 +4,13 @@
 
 set -o pipefail
 
-VERSION="1.2.1"
+VERSION="1.3.0"
 SCRIPT_NAME="anan-tools"
 DEFAULT_SHORTCUT="a"
 BIN_PATH="/usr/local/bin/${DEFAULT_SHORTCUT}"
 ALT_BIN_PATH="/usr/local/bin/anan"
 INSTALL_DIR="/opt/anan-tools"
+FAV_FILE="/root/.anan_app_favorites"
 REPO_RAW="https://raw.githubusercontent.com/ggggghbbbbb/anan-tools/main/anan-tools.sh"
 REPO_GIT="https://github.com/ggggghbbbbb/anan-tools.git"
 
@@ -223,178 +224,269 @@ oracle_menu() {
 }
 
 
+get_builtin_apps() {
+  cat <<'EOF_APPS'
+1|宝塔面板官方版|dir|/www/server/panel|hint
+2|aaPanel宝塔国际版|dir|/www/server/panel|hint
+3|1Panel新一代管理面板|cmd|1pctl|cmd
+4|NginxProxyManager可视化面板|container|npm|docker_npm
+5|OpenList多存储文件列表程序|container|openlist|hint
+6|Ubuntu远程桌面网页版|container|webtop|hint
+7|哪吒探针VPS监控面板|service|nezha-dashboard|hint
+8|QB离线BT磁力下载面板|container|qbittorrent|hint
+9|Poste.io邮件服务器程序|container|poste|hint
+10|RocketChat多人在线聊天系统|container|rocketchat|hint
+11|禅道项目管理软件|container|zentao|hint
+12|青龙面板定时任务管理平台|container|qinglong|hint
+13|Cloudreve网盘|container|cloudreve|hint
+14|简单图床图片管理程序|container|easyimage|hint
+15|emby多媒体管理系统|container|emby|hint
+16|Speedtest测速面板|container|speedtest|hint
+17|AdGuardHome去广告软件|container|adguardhome|hint
+18|onlyoffice在线办公OFFICE|container|onlyoffice|hint
+19|雷池WAF防火墙面板|container|safeline|hint
+20|portainer容器管理面板|container|portainer|docker_portainer
+21|VScode网页版|container|code-server|hint
+22|UptimeKuma监控工具|container|uptime-kuma|docker_uptime
+23|Memos网页备忘录|container|memos|hint
+24|Webtop远程桌面网页版|container|webtop|hint
+25|Nextcloud网盘|container|nextcloud|hint
+26|QD-Today定时任务管理框架|container|qd-today|hint
+27|Dockge容器堆栈管理面板|container|dockge|hint
+28|LibreSpeed测速工具|container|librespeed|hint
+29|searxng聚合搜索站|container|searxng|hint
+30|PhotoPrism私有相册系统|container|photoprism|hint
+31|StirlingPDF工具大全|container|stirling-pdf|hint
+32|drawio免费的在线图表软件|container|drawio|hint
+33|Sun-Panel导航面板|container|sun-panel|hint
+34|Pingvin-Share文件分享平台|container|pingvin-share|hint
+35|极简朋友圈|container|moment|hint
+36|LobeChatAI聊天聚合网站|container|lobechat|hint
+37|MyIP工具箱|container|myip|hint
+38|小雅alist全家桶|container|xiaoya|hint
+39|Bililive直播录制工具|container|bililive|hint
+40|webssh网页版SSH连接工具|container|webssh|hint
+41|耗子管理面板|container|rat-panel|hint
+42|Nexterm远程连接工具|container|nexterm|hint
+43|RustDesk远程桌面(服务端)|container|rustdesk-server|hint
+44|RustDesk远程桌面(中继端)|container|rustdesk-relay|hint
+45|Docker加速站|container|docker-mirror|hint
+46|GitHub加速站|container|github-mirror|hint
+47|普罗米修斯监控|container|prometheus|hint
+48|普罗米修斯(主机监控)|container|node-exporter|hint
+49|普罗米修斯(容器监控)|container|cadvisor|hint
+50|补货监控工具|container|stock-monitor|hint
+51|PVE开小鸡面板|container|pve|hint
+52|DPanel容器管理面板|container|dpanel|hint
+53|llama3聊天AI大模型|container|llama3|hint
+54|AMH主机建站管理面板|container|amh|hint
+55|FRP内网穿透(服务端)|cmd|frps|hint
+56|FRP内网穿透(客户端)|cmd|frpc|hint
+57|Deepseek聊天AI大模型|container|deepseek|hint
+58|Dify大模型知识库|container|dify|hint
+59|NewAPI大模型资产管理|container|new-api|hint
+60|JumpServer开源堡垒机|container|jumpserver|hint
+61|在线翻译服务器|container|translation-server|hint
+62|RAGFlow大模型知识库|container|ragflow|hint
+63|OpenWebUI自托管AI平台|container|open-webui|docker_openwebui
+64|it-tools工具箱|container|it-tools|hint
+65|n8n自动化工作流平台|container|n8n|hint
+66|yt-dlp视频下载工具|cmd|yt-dlp|hint
+67|ddns-go动态DNS管理工具|container|ddns-go|hint
+68|AllinSSL证书管理平台|container|allinssl|hint
+69|SFTPGo文件传输工具|container|sftpgo|hint
+70|AstrBot聊天机器人框架|container|astrbot|hint
+71|Navidrome私有音乐服务器|container|navidrome|hint
+72|bitwarden密码管理器|container|bitwarden|hint
+73|LibreTV私有影视|container|libretv|hint
+74|MoonTV私有影视|container|moontv|hint
+75|Melody音乐精灵|container|melody|hint
+76|在线DOS老游戏|container|dos-game|hint
+77|迅雷离线下载工具|container|xunlei|hint
+78|PandaWiki智能文档管理系统|container|pandawiki|hint
+79|Beszel服务器监控|container|beszel|hint
+80|linkwarden书签管理|container|linkwarden|hint
+81|JitsiMeet视频会议|container|jitsi-meet|hint
+82|gpt-load高性能AI透明代理|container|gpt-load|hint
+83|komari服务器监控工具|container|komari|hint
+84|Wallos个人财务管理工具|container|wallos|hint
+85|immich图片视频管理器|container|immich|hint
+86|jellyfin媒体管理系统|container|jellyfin|hint
+87|SyncTV一起看片神器|container|synctv|hint
+88|Owncast自托管直播平台|container|owncast|hint
+89|FileCodeBox文件快递|container|filecodebox|hint
+90|matrix去中心化聊天协议|container|matrix|hint
+91|gitea私有代码仓库|container|gitea|docker_gitea
+92|FileBrowser文件管理器|container|filebrowser|docker_filebrowser
+93|Dufs极简静态文件服务器|container|dufs|hint
+94|Gopeed高速下载工具|container|gopeed|hint
+95|paperless文档管理平台|container|paperless|hint
+96|2FAuth自托管二步验证器|container|2fauth|hint
+97|WireGuard组网(服务端)|cmd|wg|hint
+98|WireGuard组网(客户端)|cmd|wg|hint
+99|DSM群晖虚拟机|container|dsm|hint
+100|Syncthing点对点文件同步工具|container|syncthing|hint
+101|AI视频生成工具|container|ai-video|hint
+102|VoceChat多人在线聊天系统|container|vocechat|hint
+103|Umami网站统计工具|container|umami|hint
+104|Stream四层代理转发工具|container|stream|hint
+105|思源笔记|container|siyuan|hint
+106|Drawnix开源白板工具|container|drawnix|hint
+107|PanSou网盘搜索|container|pansou|hint
+108|LangBot聊天机器人|container|langbot|hint
+109|ZFile在线网盘|container|zfile|hint
+110|Karakeep书签管理|container|karakeep|hint
+111|多格式文件转换工具|container|convertx|hint
+112|Lucky大内网穿透工具|container|lucky|hint
+113|Firefox浏览器|cmd|firefox|hint
+114|OpenClaw机器人管理工具|container|openclaw|hint
+115|Hermes机器人管理工具|cmd|hermes|hint
+EOF_APPS
+}
+
+conf_value() {
+  local key="$1" file="$2"
+  grep -E "^[[:space:]]*${key}=" "$file" 2>/dev/null | head -n1 | sed -E "s/^[^=]+=//; s/[[:space:]]+#.*$//; s/^['\"]//; s/['\"]$//"
+}
+
+get_all_apps() {
+  get_builtin_apps
+  local idx=116 f app_id app_name app_text docker_name docker_port check_kind check_value display
+  for f in "$HOME"/apps/*.conf; do
+    [ -e "$f" ] || continue
+    app_id="$(conf_value app_id "$f")"; [ -z "$app_id" ] && app_id="$(basename "$f" .conf)"
+    app_name="$(conf_value app_name "$f")"
+    app_text="$(conf_value app_text "$f")"
+    docker_name="$(conf_value docker_name "$f")"
+    docker_port="$(conf_value docker_port "$f")"
+    display="${app_name:-$app_text}"; [ -z "$display" ] && display="$app_id"
+    if [ -n "$docker_name" ]; then check_kind=container; check_value="$docker_name"
+    elif [ -n "$docker_port" ]; then check_kind=port; check_value="$docker_port"
+    else check_kind=dir; check_value="/home/docker/$app_id"
+    fi
+    echo "${idx}|${display}|${check_kind}|${check_value}|thirdparty:${f}"
+    idx=$((idx+1))
+  done
+}
+
+fav_has() { [ -f "$FAV_FILE" ] && grep -qx "$1" "$FAV_FILE"; }
+fav_add() { mkdir -p "$(dirname "$FAV_FILE")"; touch "$FAV_FILE"; fav_has "$1" || echo "$1" >> "$FAV_FILE"; }
+fav_del() { [ -f "$FAV_FILE" ] || return 0; grep -vx "$1" "$FAV_FILE" > "${FAV_FILE}.tmp" || true; mv "${FAV_FILE}.tmp" "$FAV_FILE"; }
+
+app_print_line() {
+  local id="$1" name="$2" kind="$3" value="$4" star=" " rendered
+  fav_has "$id" && star="★"
+  if app_installed "$kind" "$value"; then rendered="$(installed_label "$name")"; else rendered="$name"; fi
+  printf "${C_CYAN}%3s.${C_RESET} %s %-42s\n" "$id" "$star" "$rendered"
+}
+
 app_market_menu() {
-  # id|name|check_kind|check_value|kind
-  local apps=(
-    "1|宝塔面板官方版|dir|/www/server/panel|hint"
-    "2|aaPanel宝塔国际版|dir|/www/server/panel|hint"
-    "3|1Panel新一代管理面板|cmd|1pctl|cmd"
-    "4|NginxProxyManager可视化面板|container|npm|docker_npm"
-    "5|OpenList多存储文件列表程序|container|openlist|hint"
-    "6|Ubuntu远程桌面网页版|container|webtop|hint"
-    "7|哪吒探针VPS监控面板|container|nezha-dashboard|hint"
-    "8|QB离线BT磁力下载面板|container|qbittorrent|hint"
-    "9|Poste.io邮件服务器程序|container|poste|hint"
-    "10|RocketChat多人在线聊天系统|container|rocketchat|hint"
-    "11|禅道项目管理软件|container|zentao|hint"
-    "12|青龙面板定时任务管理平台|container|qinglong|hint"
-    "13|Cloudreve网盘|container|cloudreve|hint"
-    "14|简单图床图片管理程序|container|easyimage|hint"
-    "15|emby多媒体管理系统|container|emby|hint"
-    "16|Speedtest测速面板|container|speedtest|hint"
-    "17|AdGuardHome去广告软件|container|adguardhome|hint"
-    "18|onlyoffice在线办公OFFICE|container|onlyoffice|hint"
-    "19|雷池WAF防火墙面板|container|safeline|hint"
-    "20|portainer容器管理面板|container|portainer|docker_portainer"
-    "21|VScode网页版|container|code-server|hint"
-    "22|UptimeKuma监控工具|container|uptime-kuma|docker_uptime"
-    "23|Memos网页备忘录|container|memos|hint"
-    "24|Webtop远程桌面网页版|container|webtop|hint"
-    "25|Nextcloud网盘|container|nextcloud|hint"
-    "26|QD-Today定时任务管理框架|container|qd-today|hint"
-    "27|Dockge容器堆栈管理面板|container|dockge|hint"
-    "28|LibreSpeed测速工具|container|librespeed|hint"
-    "29|searxng聚合搜索站|container|searxng|hint"
-    "30|PhotoPrism私有相册系统|container|photoprism|hint"
-    "31|StirlingPDF工具大全|container|stirling-pdf|hint"
-    "32|drawio免费的在线图表软件|container|drawio|hint"
-    "33|Sun-Panel导航面板|container|sun-panel|hint"
-    "34|Pingvin-Share文件分享平台|container|pingvin-share|hint"
-    "35|极简朋友圈|container|moment|hint"
-    "36|LobeChatAI聊天聚合网站|container|lobechat|hint"
-    "37|MyIP工具箱|container|myip|hint"
-    "38|小雅alist全家桶|container|xiaoya|hint"
-    "39|Bililive直播录制工具|container|bililive|hint"
-    "40|webssh网页版SSH连接工具|container|webssh|hint"
-    "41|耗子管理面板|container|rat-panel|hint"
-    "42|Nexterm远程连接工具|container|nexterm|hint"
-    "43|RustDesk远程桌面(服务端)|container|rustdesk-server|hint"
-    "44|RustDesk远程桌面(中继端)|container|rustdesk-relay|hint"
-    "45|Docker加速站|container|docker-mirror|hint"
-    "46|GitHub加速站|container|github-mirror|hint"
-    "47|普罗米修斯监控|container|prometheus|hint"
-    "48|普罗米修斯(主机监控)|container|node-exporter|hint"
-    "49|普罗米修斯(容器监控)|container|cadvisor|hint"
-    "50|补货监控工具|container|stock-monitor|hint"
-    "51|PVE开小鸡面板|container|pve|hint"
-    "52|DPanel容器管理面板|container|dpanel|hint"
-    "53|llama3聊天AI大模型|container|llama3|hint"
-    "54|AMH主机建站管理面板|container|amh|hint"
-    "55|FRP内网穿透(服务端)|cmd|frps|hint"
-    "56|FRP内网穿透(客户端)|cmd|frpc|hint"
-    "57|Deepseek聊天AI大模型|container|deepseek|hint"
-    "58|Dify大模型知识库|container|dify|hint"
-    "59|NewAPI大模型资产管理|container|new-api|hint"
-    "60|JumpServer开源堡垒机|container|jumpserver|hint"
-    "61|在线翻译服务器|container|translation-server|hint"
-    "62|RAGFlow大模型知识库|container|ragflow|hint"
-    "63|OpenWebUI自托管AI平台|container|open-webui|docker_openwebui"
-    "64|it-tools工具箱|container|it-tools|hint"
-    "65|n8n自动化工作流平台|container|n8n|hint"
-    "66|yt-dlp视频下载工具|cmd|yt-dlp|hint"
-    "67|ddns-go动态DNS管理工具|container|ddns-go|hint"
-    "68|AllinSSL证书管理平台|container|allinssl|hint"
-    "69|SFTPGo文件传输工具|container|sftpgo|hint"
-    "70|AstrBot聊天机器人框架|container|astrbot|hint"
-    "71|Navidrome私有音乐服务器|container|navidrome|hint"
-    "72|bitwarden密码管理器|container|bitwarden|hint"
-    "73|LibreTV私有影视|container|libretv|hint"
-    "74|MoonTV私有影视|container|moontv|hint"
-    "75|Melody音乐精灵|container|melody|hint"
-    "76|在线DOS老游戏|container|dos-game|hint"
-    "77|迅雷离线下载工具|container|xunlei|hint"
-    "78|PandaWiki智能文档管理系统|container|pandawiki|hint"
-    "79|Beszel服务器监控|container|beszel|hint"
-    "80|linkwarden书签管理|container|linkwarden|hint"
-    "81|JitsiMeet视频会议|container|jitsi-meet|hint"
-    "82|gpt-load高性能AI透明代理|container|gpt-load|hint"
-    "83|komari服务器监控工具|container|komari|hint"
-    "84|Wallos个人财务管理工具|container|wallos|hint"
-    "85|immich图片视频管理器|container|immich|hint"
-    "86|jellyfin媒体管理系统|container|jellyfin|hint"
-    "87|SyncTV一起看片神器|container|synctv|hint"
-    "88|Owncast自托管直播平台|container|owncast|hint"
-    "89|FileCodeBox文件快递|container|filecodebox|hint"
-    "90|matrix去中心化聊天协议|container|matrix|hint"
-    "91|gitea私有代码仓库|container|gitea|docker_gitea"
-    "92|FileBrowser文件管理器|container|filebrowser|docker_filebrowser"
-    "93|Dufs极简静态文件服务器|container|dufs|hint"
-    "94|Gopeed高速下载工具|container|gopeed|hint"
-    "95|paperless文档管理平台|container|paperless|hint"
-    "96|2FAuth自托管二步验证器|container|2fauth|hint"
-    "97|WireGuard组网(服务端)|cmd|wg|hint"
-    "98|WireGuard组网(客户端)|cmd|wg|hint"
-    "99|DSM群晖虚拟机|container|dsm|hint"
-    "100|Syncthing点对点文件同步工具|container|syncthing|hint"
-    "101|AI视频生成工具|container|ai-video|hint"
-    "102|VoceChat多人在线聊天系统|container|vocechat|hint"
-    "103|Umami网站统计工具|container|umami|hint"
-    "104|Stream四层代理转发工具|container|stream|hint"
-    "105|思源笔记|container|siyuan|hint"
-    "106|Drawnix开源白板工具|container|drawnix|hint"
-    "107|PanSou网盘搜索|container|pansou|hint"
-    "108|LangBot聊天机器人|container|langbot|hint"
-    "109|ZFile在线网盘|container|zfile|hint"
-    "110|Karakeep书签管理|container|karakeep|hint"
-    "111|多格式文件转换工具|container|convertx|hint"
-    "112|Lucky大内网穿透工具|container|lucky|hint"
-    "113|Firefox浏览器|cmd|firefox|hint"
-    "114|OpenClaw机器人管理工具|container|openclaw|hint"
-    "115|Hermes机器人管理工具|cmd|hermes|hint"
-  )
   while true; do
     header; echo -e "${C_PURPLE}应用市场${C_RESET}"; small_line
-    echo -e "${C_GREEN}绿色${C_RESET}=检测到本机已安装（命令/目录/服务/容器/端口）"
+    echo -e "${C_GREEN}绿色${C_RESET}=已安装    ★=已收藏"
     small_line
-    local item id name kind value installer shown=0
-    for item in "${apps[@]}"; do
-      IFS='|' read -r id name kind value installer <<< "$item"
-      printf "${C_CYAN}%-4s${C_RESET} %s" "$id." "$(app_color "$kind" "$value" "$name")"
-      shown=$((shown+1))
-      if [ $((shown % 2)) -eq 0 ]; then echo; else printf "\t"; fi
-    done
-    [ $((shown % 2)) -ne 0 ] && echo
+    if [ -s "$FAV_FILE" ]; then
+      echo -e "${C_YELLOW}★ 我的收藏${C_RESET}"
+      while IFS='|' read -r id name kind value installer; do
+        fav_has "$id" && app_print_line "$id" "$name" "$kind" "$value"
+      done < <(get_all_apps)
+      small_line
+    fi
+    while IFS='|' read -r id name kind value installer; do
+      app_print_line "$id" "$name" "$kind" "$value"
+    done < <(get_all_apps)
     small_line
-    echo "b. 备份全部 Docker 应用数据（/opt 下常见目录）"
-    echo "r. 还原应用数据（预留）"
-    echo "0. 返回主菜单"; line
+    echo "输入编号: 管理/安装应用"
+    echo "f: 收藏管理    0: 返回主菜单"
+    line
     if ! read -r -p "请输入你的选择: " n; then exit 0; fi
     case "$n" in
       0) break;;
-      b) tar -czf "/root/anan-apps-backup-$(date +%F).tar.gz" /opt 2>/dev/null || true; log "备份完成：/root/anan-apps-backup-$(date +%F).tar.gz"; pause;;
-      r) warn "还原需要指定备份包，后续可做成选择列表。"; pause;;
-      *) app_market_handle "$n" "${apps[@]}"; pause;;
+      f|F) app_favorite_menu;;
+      *) app_market_handle "$n";;
     esac
   done
 }
 
-app_market_handle() {
-  local choose="$1"; shift
-  local item id name kind value installer
-  for item in "$@"; do
-    IFS='|' read -r id name kind value installer <<< "$item"
-    [ "$id" = "$choose" ] || continue
-    if app_installed "$kind" "$value"; then
-      echo -e "${C_GREEN}[已安装]${C_RESET} $name 已在本机检测到，跳过安装。"
-      app_show_status "$kind" "$value"
-      return 0
+app_favorite_menu() {
+  while true; do
+    header; echo -e "${C_PURPLE}应用收藏${C_RESET}"; small_line
+    if [ -s "$FAV_FILE" ]; then
+      echo "当前收藏："
+      while IFS='|' read -r id name kind value installer; do
+        fav_has "$id" && app_print_line "$id" "$name" "$kind" "$value"
+      done < <(get_all_apps)
+    else
+      echo "暂无收藏"
     fi
-    echo "准备安装：$name"
-    confirm "确认安装？" || return 0
-    case "$installer" in
-      cmd) install_1panel;;
-      docker_npm) install_docker_app_npm;;
-      docker_portainer) install_docker_app_portainer;;
-      docker_uptime) install_docker_app_uptime;;
-      docker_openwebui) install_docker_app_openwebui;;
-      docker_gitea) install_docker_app_gitea;;
-      docker_filebrowser) install_docker_app_filebrowser;;
-      *) warn "这个应用已加入市场和已安装检测，但自动安装脚本暂未接入。后续给我安装方式/端口，我再补全。";;
+    small_line
+    echo "1. 添加收藏"
+    echo "2. 删除收藏"
+    echo "3. 清空收藏"
+    echo "0. 返回应用市场"
+    line
+    if ! read -r -p "请选择: " c; then exit 0; fi
+    case "$c" in
+      1) local id; ask id "输入要收藏的应用编号: "; app_id_exists "$id" && fav_add "$id" && log "已收藏 $id" || warn "编号不存在"; pause;;
+      2) local id; ask id "输入要删除收藏的应用编号: "; fav_del "$id"; log "已删除收藏 $id"; pause;;
+      3) : > "$FAV_FILE"; log "已清空收藏"; pause;;
+      0) break;;
+      *) warn "无效选择"; sleep 1;;
     esac
-    return 0
   done
-  warn "无效选择"
 }
+
+app_id_exists() { local want="$1"; while IFS='|' read -r id _; do [ "$id" = "$want" ] && return 0; done < <(get_all_apps); return 1; }
+
+app_market_handle() {
+  local choose="$1" item id name kind value installer
+  while IFS='|' read -r id name kind value installer; do
+    [ "$id" = "$choose" ] || continue
+    while true; do
+      header; echo -e "${C_PURPLE}${id}. ${name}${C_RESET}"; small_line
+      app_installed "$kind" "$value" && echo -e "状态: ${C_GREEN}已安装${C_RESET}" || echo "状态: 未安装"
+      fav_has "$id" && echo "收藏: ★ 已收藏" || echo "收藏: 未收藏"
+      echo "1. 安装/打开安装器"
+      echo "2. 加入收藏"
+      echo "3. 取消收藏"
+      echo "4. 查看状态"
+      echo "0. 返回应用市场"
+      line
+      if ! read -r -p "请选择: " a; then exit 0; fi
+      case "$a" in
+        1)
+          if app_installed "$kind" "$value"; then echo -e "${C_GREEN}[已安装]${C_RESET} $name 已在本机检测到，跳过安装。"; app_show_status "$kind" "$value"
+          else app_install_by_installer "$name" "$installer"; fi
+          pause;;
+        2) fav_add "$id"; log "已收藏 $id. $name"; pause;;
+        3) fav_del "$id"; log "已取消收藏 $id. $name"; pause;;
+        4) app_show_status "$kind" "$value"; pause;;
+        0) break;;
+        *) warn "无效选择"; sleep 1;;
+      esac
+    done
+    return 0
+  done < <(get_all_apps)
+  warn "无效选择"; sleep 1
+}
+
+app_install_by_installer() {
+  local name="$1" installer="$2"
+  echo "准备安装：$name"
+  confirm "确认安装？" || return 0
+  case "$installer" in
+    cmd) install_1panel;;
+    docker_npm) install_docker_app_npm;;
+    docker_portainer) install_docker_app_portainer;;
+    docker_uptime) install_docker_app_uptime;;
+    docker_openwebui) install_docker_app_openwebui;;
+    docker_gitea) install_docker_app_gitea;;
+    docker_filebrowser) install_docker_app_filebrowser;;
+    thirdparty:*) source "${installer#thirdparty:}"; type docker_app_install >/dev/null 2>&1 && docker_app_install || warn "该第三方应用没有 docker_app_install 函数";;
+    *) warn "该应用自动安装脚本暂未接入。";;
+  esac
+}
+
 
 app_show_status() {
   local kind="$1" value="$2"
