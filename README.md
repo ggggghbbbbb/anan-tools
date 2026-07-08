@@ -65,7 +65,7 @@ a
 
 ## 应用市场
 
-已加入 kejilion 风格应用市场菜单，包含宝塔、1Panel、Nginx Proxy Manager、哪吒、qBittorrent、Portainer、Open WebUI、Gitea、FileBrowser 等常用应用条目。
+已加入 kejilion 风格应用市场菜单，已补全参考脚本里的 1-115 个应用条目，包含宝塔、1Panel、Nginx Proxy Manager、哪吒、qBittorrent、Portainer、Open WebUI、Gitea、FileBrowser、Firefox、OpenClaw、Hermes 等。
 
 当前部分应用已接入自动安装，未接入的条目会先做已安装检测并提示后续可补充安装方式。
 
