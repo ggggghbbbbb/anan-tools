@@ -4,13 +4,14 @@
 
 set -o pipefail
 
-VERSION="1.3.0"
+VERSION="1.4.0"
 SCRIPT_NAME="anan-tools"
 DEFAULT_SHORTCUT="a"
 BIN_PATH="/usr/local/bin/${DEFAULT_SHORTCUT}"
 ALT_BIN_PATH="/usr/local/bin/anan"
 INSTALL_DIR="/opt/anan-tools"
 FAV_FILE="/root/.anan_app_favorites"
+LOCAL_ONLY="true"
 REPO_RAW="https://raw.githubusercontent.com/ggggghbbbbb/anan-tools/main/anan-tools.sh"
 REPO_GIT="https://github.com/ggggghbbbbb/anan-tools.git"
 
@@ -167,11 +168,37 @@ software_repo_menu() {
 
 clone_or_update_repo() { local name="$1" repo="$2" dir="$3"; install_base_deps; mkdir -p "$(dirname "$dir")"; if [ -d "$dir/.git" ]; then warn "$name 已存在，执行 git pull"; git -C "$dir" pull --ff-only; else warn "克隆 $repo 到 $dir"; rm -rf "$dir"; git clone "$repo" "$dir"; fi; }
 find_install_script() { local dir="$1"; for f in install.sh setup.sh deploy.sh run.sh main.sh start.sh; do [ -f "$dir/$f" ] && { echo "$dir/$f"; return 0; }; done; find "$dir" -maxdepth 2 -type f \( -name 'install*.sh' -o -name 'setup*.sh' -o -name 'deploy*.sh' \) 2>/dev/null | head -n1; }
-run_project_install() { local name="$1" repo="$2" dir="$3" service="${4:-}" port="${5:-}"; if project_is_installed "$dir" "$service" "$port"; then echo -e "${C_GREEN}[已安装]${C_RESET} 检测到 $name 已存在（目录/服务/端口命中），跳过安装。"; project_status "$dir" "$service" "$port"; return 0; fi; clone_or_update_repo "$name" "$repo" "$dir" || return 1; local installer; installer="$(find_install_script "$dir")"; if [ -n "$installer" ]; then warn "找到安装脚本：$installer"; chmod +x "$installer"; (cd "$dir" && bash "$installer"); else warn "未发现标准安装脚本，已完成拉取：$dir"; fi; }
-run_project_update() { local name="$1" repo="$2" dir="$3"; clone_or_update_repo "$name" "$repo" "$dir" || return 1; local installer; installer="$(find_install_script "$dir")"; [ -n "$installer" ] && confirm "是否重新执行安装/部署脚本？" && { chmod +x "$installer"; (cd "$dir" && bash "$installer"); }; }
+run_project_install() {
+  local name="$1" repo="$2" dir="$3" service="${4:-}" port="${5:-}"
+  if project_is_installed "$dir" "$service" "$port"; then
+    echo -e "${C_GREEN}[已安装]${C_RESET} 检测到 $name 已存在（目录/服务/端口命中），跳过安装。"
+    project_status "$dir" "$service" "$port"
+    return 0
+  fi
+  clone_or_update_repo "$name" "$repo" "$dir" || return 1
+  local installer; installer="$(find_install_script "$dir")"
+  if [ -n "$installer" ]; then
+    warn "已拉取到本地：$dir"
+    warn "检测到安装脚本：$installer"
+    warn "当前为全本地化/安全模式：不会自动执行仓库里的第三方安装脚本。请手动审查后再执行。"
+  else
+    warn "未发现标准安装脚本，已完成拉取：$dir"
+  fi
+}
+run_project_update() {
+  local name="$1" repo="$2" dir="$3"
+  clone_or_update_repo "$name" "$repo" "$dir" || return 1
+  warn "已更新本地代码。全本地化/安全模式下不会自动执行仓库脚本。"
+}
+
 run_project_uninstall() { local name="$1" dir="$2" service="$3"; warn "准备卸载 $name"; if [ -n "$service" ] && systemctl list-unit-files 2>/dev/null | grep -q "^${service}\.service"; then systemctl stop "$service" 2>/dev/null || true; systemctl disable "$service" 2>/dev/null || true; rm -f "/etc/systemd/system/${service}.service"; systemctl daemon-reload || true; fi; [ -d "$dir" ] && confirm "是否删除目录 $dir ?" && rm -rf "$dir"; log "处理完成"; }
 open_firewall_port() { local port="$1"; [ -z "$port" ] && { err "端口为空"; return 1; }; if cmd_exists ufw; then ufw allow "$port/tcp" || true; fi; if cmd_exists firewall-cmd; then firewall-cmd --permanent --add-port="${port}/tcp" && firewall-cmd --reload || true; fi; if cmd_exists iptables; then iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null || iptables -I INPUT 1 -p tcp --dport "$port" -j ACCEPT || true; fi; log "已尝试放行端口 $port，云安全组也需要放行。"; }
-install_caddy() { cmd_exists caddy && return 0; warn "安装 Caddy"; case "$(pm_detect)" in apt) pkg_install debian-keyring debian-archive-keyring apt-transport-https curl gpg; curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg; curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' > /etc/apt/sources.list.d/caddy-stable.list; apt-get update; apt-get install -y caddy;; dnf|yum) pkg_install caddy;; *) pkg_install caddy;; esac; }
+install_caddy() {
+  if cmd_exists caddy; then return 0; fi
+  warn "将仅通过当前系统包管理器安装 Caddy，不添加第三方脚本/仓库。"
+  pkg_install caddy || warn "当前系统源未提供 caddy，请先手动配置可信软件源后再试。"
+}
+
 setup_domain_access() { local port="$1" domain; header; echo -e "${C_PURPLE}开启域名访问${C_RESET}"; small_line; echo "将安装/配置 Caddy，把域名反代到 127.0.0.1:${port}"; echo "请先把域名 A 记录解析到本机，并在云安全组放行 80/443。"; ask domain "请输入域名（留空取消）: "; [ -z "$domain" ] && return 0; install_caddy; mkdir -p /etc/caddy; [ -f /etc/caddy/Caddyfile ] && cp /etc/caddy/Caddyfile "/etc/caddy/Caddyfile.bak.$(date +%Y%m%d%H%M%S)"; cat >> /etc/caddy/Caddyfile <<EOF_CADDY
 
 ${domain} {
@@ -183,11 +210,29 @@ project_status() { local dir="$1" service="$2" port="$3"; header; echo -e "${C_P
 project_menu() { local name="$1" repo="$2" dir="$3" service="$4" port="$5"; while true; do header; if project_is_installed "$dir" "$service" "$port"; then echo -e "${C_GREEN}${name} [已安装]${C_RESET}"; else echo -e "${C_PURPLE}${name}${C_RESET}"; fi; small_line; echo "仓库: $repo"; echo "目录: $dir"; echo "端口: $port"; small_line; echo "1. 安装"; echo "2. 卸载"; echo "3. 更新"; echo "4. 开启域名访问"; echo "5. 查看状态"; echo "6. 放行端口"; echo "0. 返回上级菜单"; line; if ! read -r -p "请选择: " n; then exit 0; fi; case "$n" in 1) run_project_install "$name" "$repo" "$dir" "$service" "$port"; pause;; 2) run_project_uninstall "$name" "$dir" "$service"; pause;; 3) run_project_update "$name" "$repo" "$dir"; pause;; 4) setup_domain_access "$port"; pause;; 5) project_status "$dir" "$service" "$port"; pause;; 6) open_firewall_port "$port"; pause;; 0) break;; *) warn "无效选择"; sleep 1;; esac; done; }
 custom_project_install() { local repo dir name port service; ask repo "GitHub 仓库地址: "; [ -z "$repo" ] && return; ask dir "安装目录（默认 /opt/custom-app）: "; dir=${dir:-/opt/custom-app}; ask name "项目名称（默认 custom-app）: "; name=${name:-custom-app}; ask service "服务名（可留空）: "; ask port "端口（可留空）: "; project_menu "$name" "$repo" "$dir" "$service" "$port"; }
 
-install_docker() { cmd_exists docker && { log "Docker 已安装：$(docker --version)"; return 0; }; warn "使用 Docker 官方脚本安装"; curl -fsSL https://get.docker.com -o /tmp/get-docker.sh; sh /tmp/get-docker.sh; systemctl enable --now docker; log "Docker 安装完成"; }
+install_docker() {
+  cmd_exists docker && { log "Docker 已安装：$(docker --version)"; return 0; }
+  warn "全本地化模式：仅使用系统包管理器安装 Docker，不执行 get.docker.com 脚本。"
+  case "$(pm_detect)" in
+    apt) pkg_install docker.io docker-compose-plugin || pkg_install docker.io docker-compose;;
+    dnf|yum) pkg_install docker docker-compose-plugin || pkg_install docker docker-compose;;
+    apk) pkg_install docker docker-cli-compose;;
+    pacman) pkg_install docker docker-compose;;
+    *) err "暂不支持当前包管理器"; return 1;;
+  esac
+  systemctl enable --now docker 2>/dev/null || service docker start 2>/dev/null || true
+  log "Docker 安装完成"
+}
+
 uninstall_docker() { confirm "确认卸载 Docker 软件包？不会删除 /var/lib/docker 数据。" || { warn "已取消"; return; }; systemctl stop docker 2>/dev/null || true; pkg_remove docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin docker.io docker-compose docker 2>/dev/null || true; }
 docker_menu() { while true; do header; if cmd_exists docker; then echo -e "${C_GREEN}Docker 管理 [已安装]${C_RESET}"; else echo -e "${C_PURPLE}Docker 管理${C_RESET}"; fi; small_line; echo -e "1. $(menu_name "$(cmd_exists docker && echo yes || echo no)" "安装 Docker / Compose")"; echo "2. 启动 Docker"; echo "3. 停止 Docker"; echo "4. 重启 Docker"; echo "5. 查看 Docker 状态"; echo "6. 容器列表"; echo "7. 镜像列表"; echo "8. 清理无用镜像/容器/缓存"; echo "9. 卸载 Docker（保留数据）"; echo "0. 返回主菜单"; line; if ! read -r -p "请选择: " n; then exit 0; fi; case "$n" in 1) install_docker; pause;; 2) systemctl enable --now docker; pause;; 3) systemctl stop docker; pause;; 4) systemctl restart docker; pause;; 5) docker --version 2>/dev/null || true; docker compose version 2>/dev/null || true; systemctl status docker --no-pager -l 2>/dev/null || true; pause;; 6) docker ps -a; pause;; 7) docker images; pause;; 8) docker system prune -af; pause;; 9) uninstall_docker; pause;; 0) break;; *) warn "无效选择"; sleep 1;; esac; done; }
 
-install_node_lts() { cmd_exists node && warn "当前 Node: $(node -v)"; case "$(pm_detect)" in apt) curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -; apt-get install -y nodejs;; dnf|yum) curl -fsSL https://rpm.nodesource.com/setup_lts.x | bash -; "$(pm_detect)" install -y nodejs;; *) pkg_install nodejs npm;; esac; }
+install_node_lts() {
+  cmd_exists node && { warn "当前 Node: $(node -v)"; return 0; }
+  warn "全本地化模式：仅使用系统包管理器安装 nodejs/npm，不执行 NodeSource 脚本。"
+  pkg_install nodejs npm
+}
+
 cli_tools_menu() { while true; do header; echo -e "${C_PURPLE}基础工具${C_RESET}"; small_line; echo -e "1. $(menu_name "$(cmd_exists jq && echo yes || echo no)" "安装常用工具包")"; echo -e "2. $(menu_name "$(cmd_exists uv && echo yes || echo no)" "安装/更新 uv")"; echo -e "3. $(menu_name "$(cmd_exists node && echo yes || echo no)" "安装 Node.js LTS")"; echo -e "4. $(menu_name "$(cmd_exists python3 && echo yes || echo no)" "安装 Python3/pip/venv")"; echo -e "5. $(menu_name "$(cmd_exists btop && echo yes || echo no)" "安装 btop/htop/tmux/vim/nano")"; echo "0. 返回主菜单"; line; if ! read -r -p "请选择: " n; then exit 0; fi; case "$n" in 1) pkg_install curl wget git unzip zip tar gzip jq htop tmux nano vim ca-certificates openssl socat net-tools iproute2 dnsutils lsof rsync cron sudo; pause;; 2) curl -LsSf https://astral.sh/uv/install.sh | sh; pause;; 3) install_node_lts; pause;; 4) pkg_install python3 python3-pip python3-venv python3-dev; pause;; 5) pkg_install btop htop tmux vim nano; pause;; 0) break;; *) warn "无效选择"; sleep 1;; esac; done; }
 
 bbr_status() { sysctl net.ipv4.tcp_congestion_control 2>/dev/null; sysctl net.core.default_qdisc 2>/dev/null; lsmod | grep bbr || true; }
@@ -196,10 +241,13 @@ net.core.default_qdisc=fq
 net.ipv4.tcp_congestion_control=bbr
 EOF
 sysctl --system; bbr_status; }
-bbr_menu() { while true; do header; echo -e "${C_PURPLE}BBR 管理${C_RESET}"; small_line; echo "1. 查看 BBR 状态"; echo "2. 开启 BBR"; echo "3. Linux 网络参数优化（拉取 kejilion network-optimize）"; echo "0. 返回主菜单"; line; if ! read -r -p "请选择: " n; then exit 0; fi; case "$n" in 1) bbr_status; pause;; 2) bbr_enable; pause;; 3) curl -sS https://raw.githubusercontent.com/kejilion/sh/refs/heads/main/network-optimize.sh | bash; pause;; 0) break;; *) warn "无效选择"; sleep 1;; esac; done; }
+bbr_menu() { while true; do header; echo -e "${C_PURPLE}BBR 管理${C_RESET}"; small_line; echo "1. 查看 BBR 状态"; echo "2. 开启 BBR"; echo "3. 查看当前内核网络参数"; echo "0. 返回主菜单"; line; if ! read -r -p "请选择: " n; then exit 0; fi; case "$n" in 1) bbr_status; pause;; 2) bbr_enable; pause;; 3) sysctl net.ipv4.tcp_congestion_control net.core.default_qdisc net.ipv4.tcp_fastopen 2>/dev/null || true; pause;; 0) break;; *) warn "无效选择"; sleep 1;; esac; done; }
 
-warp_menu() { header; echo -e "${C_PURPLE}WARP 管理${C_RESET}"; small_line; echo "将拉取 fscarmen/warp 官方菜单脚本。"; confirm "是否继续？" && { pkg_install wget; wget -N https://gitlab.com/fscarmen/warp/-/raw/main/menu.sh && bash menu.sh; }; }
-test_scripts_menu() { while true; do header; echo -e "${C_PURPLE}测试脚本合集${C_RESET}"; small_line; echo "1. bench.sh 综合测试"; echo "2. yabs 性能测试"; echo "3. speedtest 网络测速"; echo "4. 三网回程测试"; echo "0. 返回主菜单"; line; if ! read -r -p "请选择: " n; then exit 0; fi; case "$n" in 1) curl -Lso- bench.sh | bash; pause;; 2) curl -sL yabs.sh | bash; pause;; 3) bash <(curl -sL https://raw.githubusercontent.com/i-abc/Speedtest/main/speedtest.sh); pause;; 4) curl https://raw.githubusercontent.com/zhucaidan/mtr_trace/main/mtr_trace.sh|bash; pause;; 0) break;; *) warn "无效选择"; sleep 1;; esac; done; }
+
+warp_menu() { header; echo -e "${C_PURPLE}WARP 管理${C_RESET}"; small_line; warn "全本地化模式：不再拉取 fscarmen/warp 等第三方脚本。"; echo "如需 WARP，请先把可信的本地安装脚本或包放到服务器，再接入本工具箱。"; }
+
+test_scripts_menu() { while true; do header; echo -e "${C_PURPLE}测试工具${C_RESET}"; small_line; echo "1. 本机基础性能信息"; echo "2. 磁盘测速 dd"; echo "3. 网络连接/监听端口"; echo "4. Docker 资源状态"; echo "0. 返回主菜单"; line; if ! read -r -p "请选择: " n; then exit 0; fi; case "$n" in 1) uname -a; lscpu | head -30; free -h; df -hT /; pause;; 2) dd if=/dev/zero of=/tmp/anan-dd-test bs=64M count=4 conv=fdatasync; rm -f /tmp/anan-dd-test; pause;; 3) ip addr; ss -lntup 2>/dev/null || true; pause;; 4) docker stats --no-stream 2>/dev/null || docker ps -a 2>/dev/null || warn "Docker 未安装或未运行"; pause;; 0) break;; *) warn "无效选择"; sleep 1;; esac; done; }
+
 oracle_menu() {
   while true; do
     header
@@ -439,36 +487,37 @@ app_favorite_menu() {
 app_id_exists() { local want="$1"; while IFS='|' read -r id _; do [ "$id" = "$want" ] && return 0; done < <(get_all_apps); return 1; }
 
 app_market_handle() {
-  local choose="$1" item id name kind value installer
-  while IFS='|' read -r id name kind value installer; do
-    [ "$id" = "$choose" ] || continue
-    while true; do
-      header; echo -e "${C_PURPLE}${id}. ${name}${C_RESET}"; small_line
-      app_installed "$kind" "$value" && echo -e "状态: ${C_GREEN}已安装${C_RESET}" || echo "状态: 未安装"
-      fav_has "$id" && echo "收藏: ★ 已收藏" || echo "收藏: 未收藏"
-      echo "1. 安装/打开安装器"
-      echo "2. 加入收藏"
-      echo "3. 取消收藏"
-      echo "4. 查看状态"
-      echo "0. 返回应用市场"
-      line
-      if ! read -r -p "请选择: " a; then exit 0; fi
-      case "$a" in
-        1)
-          if app_installed "$kind" "$value"; then echo -e "${C_GREEN}[已安装]${C_RESET} $name 已在本机检测到，跳过安装。"; app_show_status "$kind" "$value"
-          else app_install_by_installer "$name" "$installer"; fi
-          pause;;
-        2) fav_add "$id"; log "已收藏 $id. $name"; pause;;
-        3) fav_del "$id"; log "已取消收藏 $id. $name"; pause;;
-        4) app_show_status "$kind" "$value"; pause;;
-        0) break;;
-        *) warn "无效选择"; sleep 1;;
-      esac
-    done
-    return 0
-  done < <(get_all_apps)
-  warn "无效选择"; sleep 1
+  local choose="$1" record id name kind value installer a
+  record="$(get_all_apps | awk -F'|' -v want="$choose" '$1==want{print; exit}')"
+  if [ -z "$record" ]; then
+    warn "无效选择"; sleep 1; return 0
+  fi
+  IFS='|' read -r id name kind value installer <<< "$record"
+  while true; do
+    header; echo -e "${C_PURPLE}${id}. ${name}${C_RESET}"; small_line
+    app_installed "$kind" "$value" && echo -e "状态: ${C_GREEN}已安装${C_RESET}" || echo "状态: 未安装"
+    fav_has "$id" && echo "收藏: ★ 已收藏" || echo "收藏: 未收藏"
+    echo "1. 安装/打开安装器"
+    echo "2. 加入收藏"
+    echo "3. 取消收藏"
+    echo "4. 查看状态"
+    echo "0. 返回应用市场"
+    line
+    if ! read -r -p "请选择: " a; then exit 0; fi
+    case "$a" in
+      1)
+        if app_installed "$kind" "$value"; then echo -e "${C_GREEN}[已安装]${C_RESET} $name 已在本机检测到，跳过安装。"; app_show_status "$kind" "$value"
+        else app_install_by_installer "$name" "$installer"; fi
+        pause;;
+      2) fav_add "$id"; log "已收藏 $id. $name"; pause;;
+      3) fav_del "$id"; log "已取消收藏 $id. $name"; pause;;
+      4) app_show_status "$kind" "$value"; pause;;
+      0) break;;
+      *) warn "无效选择"; sleep 1;;
+    esac
+  done
 }
+
 
 app_install_by_installer() {
   local name="$1" installer="$2"
@@ -482,7 +531,7 @@ app_install_by_installer() {
     docker_openwebui) install_docker_app_openwebui;;
     docker_gitea) install_docker_app_gitea;;
     docker_filebrowser) install_docker_app_filebrowser;;
-    thirdparty:*) source "${installer#thirdparty:}"; type docker_app_install >/dev/null 2>&1 && docker_app_install || warn "该第三方应用没有 docker_app_install 函数";;
+    thirdparty:*) warn "全本地化模式：只读取第三方 conf 的名称/端口/容器用于展示和检测，不 source/执行其中脚本。";;
     *) warn "该应用自动安装脚本暂未接入。";;
   esac
 }
@@ -499,7 +548,7 @@ app_show_status() {
   esac
 }
 
-install_1panel() { curl -sSL https://resource.fit2cloud.com/1panel/package/quick_start.sh -o /tmp/1panel-install.sh && bash /tmp/1panel-install.sh; }
+install_1panel() { warn "全本地化模式：不执行 1Panel 官方远程安装脚本。请把本地安装包/离线安装命令接入后再安装。"; }
 install_docker_app_portainer() { install_docker; docker volume create portainer_data; docker run -d --name portainer --restart=always -p 9000:9000 -p 9443:9443 -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:latest; }
 install_docker_app_npm() { install_docker; mkdir -p /opt/npm/{data,letsencrypt}; docker run -d --name npm --restart=always -p 80:80 -p 81:81 -p 443:443 -v /opt/npm/data:/data -v /opt/npm/letsencrypt:/etc/letsencrypt jc21/nginx-proxy-manager:latest; }
 install_docker_app_uptime() { install_docker; docker volume create uptime-kuma; docker run -d --name uptime-kuma --restart=always -p 3001:3001 -v uptime-kuma:/app/data louislam/uptime-kuma:1; }
@@ -593,7 +642,7 @@ system_tools_menu() { while true; do header; echo -e "${C_PURPLE}系统工具${C
     11) port_status; pause;; 12) swap_set; pause;; 13) cut -d: -f1 /etc/passwd; pause;; 14) random_generator; pause;; 15) timezone_set; pause;; 16) bbr_menu;;
     17) if cmd_exists ufw; then ufw status verbose; else pkg_install ufw; ufw status verbose; fi; pause;; 18) hostname_set; pause;; 19) warn "换源因系统差异大，暂保留为手动项。"; pause;; 20) crontab -e; pause;;
     21) ${EDITOR:-nano} /etc/hosts; pause;; 22) pkg_install fail2ban; systemctl enable --now fail2ban; fail2ban-client status || true; pause;; 23) warn "限流自动关机需要你提供阈值策略，暂不自动执行。"; pause;; 24) ${EDITOR:-nano} /etc/ssh/sshd_config; systemctl restart sshd 2>/dev/null || systemctl restart ssh || true; pause;;
-    25) warn "TG bot 监控需要 Bot Token 和 chat_id，后续可单独接入。"; pause;; 26) warn "OpenSSH 修复请确认系统版本后单独执行，避免断连。"; pause;; 27) warn "仅红帽系适用，请确认后手动执行 elrepo。"; pause;; 28) curl -sS https://raw.githubusercontent.com/kejilion/sh/refs/heads/main/network-optimize.sh | bash; pause;;
+    25) warn "TG bot 监控需要 Bot Token 和 chat_id，后续可单独接入。"; pause;; 26) warn "OpenSSH 修复请确认系统版本后单独执行，避免断连。"; pause;; 27) warn "仅红帽系适用，请确认后手动执行 elrepo。"; pause;; 28) sysctl -a 2>/dev/null | grep -E "net.ipv4.tcp|net.core" | head -80; warn "全本地化模式：不拉取外部内核优化脚本。"; pause;;
     29) pkg_install clamav clamav-daemon; freshclam || true; clamscan --version; pause;; 30) ${EDITOR:-nano} .; pause;; 31) dpkg-reconfigure locales 2>/dev/null || warn "当前系统不支持 dpkg-reconfigure locales"; pause;; 32) warn "可安装 zsh/oh-my-zsh 或 starship，暂不强制修改 shell。"; pause;;
     33) mkdir -p ~/.trash; echo 'alias rm="mv -t ~/.trash"' >> ~/.bashrc; log "已添加回收站 alias，重新登录生效"; pause;; 34) tar -czf "/root/anan-backup-$(date +%F).tar.gz" /etc /root 2>/dev/null || true; pause;; 35) ask h "SSH 目标 user@host: "; [ -n "$h" ] && ssh "$h"; pause;; 36) lsblk -f; pause;;
     37) history_show; pause;; 38) pkg_install rsync; rsync --version | head; pause;; 39) ${EDITOR:-nano} ~/.anan_fav; pause;; 40) ip addr; ip route; pause;; 41) journalctl -xe --no-pager | tail -200; pause;; 42) env | sort; pause;;
@@ -603,7 +652,20 @@ done; }
 
 install_self() { need_root; install_base_deps; mkdir -p "$INSTALL_DIR"; cp "$0" "$INSTALL_DIR/anan-tools.sh"; chmod +x "$INSTALL_DIR/anan-tools.sh"; ln -sf "$INSTALL_DIR/anan-tools.sh" "$BIN_PATH"; ln -sf "$INSTALL_DIR/anan-tools.sh" "$ALT_BIN_PATH"; log "已安装快捷命令：a（兼容 anan）"; }
 uninstall_self() { need_root; rm -f "$BIN_PATH" "$ALT_BIN_PATH"; confirm "是否删除 $INSTALL_DIR ?" && rm -rf "$INSTALL_DIR"; log "工具箱卸载完成"; }
-self_update() { need_root; install_base_deps; if [ -d "$INSTALL_DIR/.git" ]; then git -C "$INSTALL_DIR" pull --ff-only; else mkdir -p "$INSTALL_DIR"; curl -fsSL "$REPO_RAW" -o "$INSTALL_DIR/anan-tools.sh"; fi; chmod +x "$INSTALL_DIR/anan-tools.sh"; ln -sf "$INSTALL_DIR/anan-tools.sh" "$BIN_PATH"; ln -sf "$INSTALL_DIR/anan-tools.sh" "$ALT_BIN_PATH"; log "脚本更新完成"; }
+self_update() {
+  need_root
+  if [ -d "$INSTALL_DIR/.git" ]; then
+    git -C "$INSTALL_DIR" pull --ff-only
+    chmod +x "$INSTALL_DIR/anan-tools.sh"
+    ln -sf "$INSTALL_DIR/anan-tools.sh" "$BIN_PATH"
+    ln -sf "$INSTALL_DIR/anan-tools.sh" "$ALT_BIN_PATH"
+    log "脚本更新完成"
+  else
+    warn "全本地化模式：不直接 curl 远程脚本覆盖自身。"
+    warn "请先 git clone 到本地，或把新版 anan-tools.sh 手动放到 $INSTALL_DIR 后再执行 --install-self。"
+  fi
+}
+
 
 main_menu() { need_root; while true; do header
   echo -e "${C_CYAN}1.${C_RESET}   系统信息查询"
