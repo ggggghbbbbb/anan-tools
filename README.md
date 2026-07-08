@@ -1,6 +1,6 @@
-# 安安服务器工具箱
+# 安安 anan 脚本工具箱
 
-仿照 kejilion 风格做的服务器菜单脚本：一个入口，集中管理系统信息、系统更新、常用软件、常用 GitHub 项目安装/卸载/更新/域名访问。
+一个仿 kejilion 风格的菜单式服务器工具箱：主入口负责系统维护、Docker、基础工具、BBR、WARP、测试脚本、甲骨文云脚本、系统工具；你自己的项目统一放到“我的软件仓库”。
 
 ## 一键运行
 
@@ -8,63 +8,67 @@
 curl -sS -O https://raw.githubusercontent.com/ggggghbbbbb/anan-tools/main/anan-tools.sh && chmod +x anan-tools.sh && ./anan-tools.sh
 ```
 
-也可以下载后安装快捷命令：
+## 安装快捷命令
+
+默认快捷命令是 `a`，兼容 `anan`：
 
 ```bash
 ./anan-tools.sh --install-self
-anan
+# 以后直接输入：
+a
 ```
 
-## 当前菜单
+## 主菜单
 
-- 系统信息
-  - OS / 内核 / 架构 / CPU / 内存 / 磁盘 / IPv4 / IPv6
-- 系统更新
-  - 更新软件源
-  - 更新系统软件包
-  - 安装基础依赖
-- 常用软件
-  - OCI-AI 脚本
-    - 安装
-    - 卸载
-    - 更新
-    - 开启域名访问（Caddy 反代）
-    - 查看状态
-    - 放行端口
-  - OCI IPv6 SOCKS5 Proxy 代理池
-    - 安装
-    - 卸载
-    - 更新
-    - 开启域名访问（Caddy 反代）
-    - 查看状态
-    - 放行端口
-  - Docker / Docker Compose
-  - 常用命令行工具
+- 1 系统信息查询
+- 2 系统更新
+- 3 系统清理
+- 4 基础工具
+- 5 BBR管理
+- 6 Docker管理
+- 7 WARP管理
+- 8 测试脚本合集
+- 9 甲骨文云脚本合集
+- 10 我的软件仓库
+- 11 应用市场（预留）
+- 12 后台工作区（预留）
+- 13 系统工具
+- 00 脚本更新
 
-## 默认项目仓库
+## 我的软件仓库
 
-- OCI-AI: <https://github.com/ggggghbbbbb/OCI-AI>
-- OCI IPv6 SOCKS5 Proxy: <https://github.com/ggggghbbbbb/OCI-IPv6-SOCKS5-PROXY>
+这里用于以后单独存放你的项目，目前默认包含：
 
-如需临时覆盖仓库：
+- OCI-AI：<https://github.com/ggggghbbbbb/OCI-AI>
+- OCI IPv6 SOCKS5 Proxy：<https://github.com/ggggghbbbbb/OCI-IPv6-SOCKS5-PROXY>
+- 自定义 GitHub 项目拉取/安装
+
+每个项目都有：
+
+- 安装
+- 卸载
+- 更新
+- 开启域名访问
+- 查看状态
+- 放行端口
+
+## 兼容命令
 
 ```bash
-OCI_AI_REPO=https://github.com/你的仓库/OCI-AI.git ./anan-tools.sh
-OCI_PROXY_REPO=https://github.com/你的仓库/OCI-IPv6-SOCKS5-PROXY.git ./anan-tools.sh
+a info
+a update
+a clean
+a install nano wget
+a docker
+a tools
+a bbr
+a software
+a system-tools
 ```
-
-## 支持系统
-
-脚本会自动识别常见包管理器：
-
-- Debian / Ubuntu: `apt`
-- CentOS / Rocky / Alma / Fedora: `yum` / `dnf`
-- Alpine: `apk`
-- Arch: `pacman`
 
 ## 注意
 
 - 请使用 root 运行。
 - “开启域名访问”会安装/配置 Caddy，并追加写入 `/etc/caddy/Caddyfile`。
 - 云服务器还需要在云厂商安全组放行对应端口、80、443。
-- 项目安装时会优先查找 `install.sh`、`setup.sh`、`deploy.sh` 等脚本并执行；如果项目仓库没有标准安装脚本，则只完成拉取并提示手动查看 README。
+- 涉及 SSH、重启、开放端口、DNS、swap 等系统工具操作前请确认风险。
